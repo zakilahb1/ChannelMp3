@@ -32,9 +32,95 @@ jobs:
         run: |
           sed -i -E 's/(youtubedl-android:(library|ffmpeg):)0\.(16\.0|17\.1)/\10.18.1/g' app/build.gradle
 
-          src=app/src/main/java/com/channelmp3/MainActivity.kt
-          sed -i 's/textIsSelectable = true/setTextIsSelectable(true)/' "$src"
-          sed -i '/engine.init(applicationContext)/a\        report("Mise à jour de yt-dlp…")\n        engine.updateYoutubeDL(applicationContext, YoutubeDL.UpdateChannel.STABLE)' "$src"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source = Path("app/src/main/java/com/channelmp3/MainActivity.kt")
+          code = source.read_text()
+
+          def replace_once(old, new):
+              global code
+              if code.count(old) != 1:
+                  raise SystemExit(f"Expected one match in MainActivity.kt: {old}")
+              code = code.replace(old, new, 1)
+
+          replace_once("textIsSelectable = true", "setTextIsSelectable(true)")
+
+          replace_once(
+              "        engine.init(applicationContext)",
+              """        engine.init(applicationContext)
+                  report("Mise à jour de yt-dlp…")
+                  runCatching {
+                      engine.updateYoutubeDL(applicationContext, YoutubeDL.UpdateChannel.STABLE)
+                  }""",
+          )
+
+          replace_once(
+              """        val scan = YoutubeDLRequest(url).apply {
+                      addOption("--flat-playlist")
+                      addOption("--dump-single-json")
+                  }
+                  val channel = JSONObject(engine.execute(scan, null, null).out)""",
+              """        val channel = JSONObject(executeWithNetworkRetry(engine, url) {
+                      addOption("--flat-playlist")
+                      addOption("--dump-single-json")
+                  }.out)""",
+          )
+
+          replace_once(
+              '                    val request = YoutubeDLRequest("https://www.youtube.com/watch?v=$id").apply {',
+              '                    executeWithNetworkRetry(engine, "https://www.youtube.com/watch?v=$id") {',
+          )
+          replace_once("                    engine.execute(request, null, null)\n", "")
+
+          replace_once(
+              "    private fun nextFolder(name: String): String {",
+              """    private fun executeWithNetworkRetry(
+                  engine: YoutubeDL,
+                  url: String,
+                  configure: YoutubeDLRequest.() -> Unit
+              ): com.yausername.youtubedl_android.YoutubeDLResponse {
+                  fun request(ipv4: Boolean) = YoutubeDLRequest(url).apply {
+                      addOption("--socket-timeout", "15")
+                      addOption("--retries", "2")
+                      addOption("--extractor-retries", "2")
+                      addOption("--retry-sleep", "http:linear=1:3:1")
+                      addOption("--retry-sleep", "extractor:linear=1:3:1")
+                      if (ipv4) addOption("--force-ipv4")
+                      configure(this)
+                  }
+
+                  try {
+                      return engine.execute(request(ipv4 = false), null, null)
+                  } catch (error: Exception) {
+                      val message = error.message.orEmpty()
+                      val dnsFailure = listOf(
+                          "No address associated with hostname",
+                          "Temporary failure in name resolution",
+                          "Name or service not known",
+                          "getaddrinfo failed"
+                      ).any { message.contains(it, ignoreCase = true) }
+                      if (!dnsFailure) throw error
+                  }
+
+                  Thread.sleep(1500)
+                  try {
+                      return engine.execute(request(ipv4 = true), null, null)
+                  } catch (error: Exception) {
+                      val detail = error.message.orEmpty().lineSequence()
+                          .lastOrNull { it.isNotBlank() }.orEmpty()
+                      throw IllegalStateException(
+                          "Résolution DNS, nouvelle tentative IPv4 échouée : $detail",
+                          error
+                      )
+                  }
+              }
+
+              private fun nextFolder(name: String): String {""",
+          )
+
+          source.write_text(code)
+          PY
 
           bash gradlew :app:assembleDebug
 
