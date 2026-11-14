@@ -30,7 +30,7 @@ jobs:
       - name: Compile APK
         working-directory: ChannelMP3
         run: |
-          sed -i 's/youtubedl-android:library:0\.16\.0/youtubedl-android:library:0.17.1/g; s/youtubedl-android:ffmpeg:0\.16\.0/youtubedl-android:ffmpeg:0.17.1/g' app/build.gradle
+          sed -i -E 's/(youtubedl-android:(library|ffmpeg):)0\.(16\.0|17\.1)/\10.18.1/g' app/build.gradle
 
           src=app/src/main/java/com/channelmp3/MainActivity.kt
           sed -i 's/textIsSelectable = true/setTextIsSelectable(true)/' "$src"
