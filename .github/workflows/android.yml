@@ -9,6 +9,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
+
     steps:
       - uses: actions/checkout@v4
 
@@ -29,7 +30,9 @@ jobs:
       - name: Compile APK
         working-directory: ChannelMP3
         run: |
-          sed -i 's/textIsSelectable = true/setTextIsSelectable(true)/' app/src/main/java/com/channelmp3/MainActivity.kt
+          src=app/src/main/java/com/channelmp3/MainActivity.kt
+          sed -i 's/textIsSelectable = true/setTextIsSelectable(true)/' "$src"
+          sed -i '/engine.init(applicationContext)/a\        report("Mise à jour de yt-dlp…")\n        engine.updateYoutubeDL(applicationContext, YoutubeDL.UpdateChannel.STABLE)' "$src"
           bash gradlew :app:assembleDebug
 
       - name: Upload APK
