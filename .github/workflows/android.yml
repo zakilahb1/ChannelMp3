@@ -8,19 +8,31 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - run: unzip -q ChannelMP3.zip
-      - run: sdkmanager 'platforms;android-35'
+
+      - name: Extract project
+        run: unzip -q ChannelMP3.zip
+
+      - name: Install Android SDK 35 if needed
+        run: |
+          if [ ! -f "$ANDROID_HOME/platforms/android-35/android.jar" ]; then
+            "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35"
+          fi
+
       - name: Compile APK
         working-directory: ChannelMP3
         run: bash gradlew :app:assembleDebug
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: ChannelMP3-APK
           path: ChannelMP3/app/build/outputs/apk/debug/app-debug.apk
