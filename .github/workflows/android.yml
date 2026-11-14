@@ -9,7 +9,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
-
     steps:
       - uses: actions/checkout@v4
 
@@ -29,7 +28,9 @@ jobs:
 
       - name: Compile APK
         working-directory: ChannelMP3
-        run: bash gradlew :app:assembleDebug
+        run: |
+          sed -i 's/textIsSelectable = true/setTextIsSelectable(true)/' app/src/main/java/com/channelmp3/MainActivity.kt
+          bash gradlew :app:assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
