@@ -30,9 +30,12 @@ jobs:
       - name: Compile APK
         working-directory: ChannelMP3
         run: |
+          sed -i 's/youtubedl-android:library:0\.16\.0/youtubedl-android:library:0.17.1/g; s/youtubedl-android:ffmpeg:0\.16\.0/youtubedl-android:ffmpeg:0.17.1/g' app/build.gradle
+
           src=app/src/main/java/com/channelmp3/MainActivity.kt
           sed -i 's/textIsSelectable = true/setTextIsSelectable(true)/' "$src"
           sed -i '/engine.init(applicationContext)/a\        report("Mise à jour de yt-dlp…")\n        engine.updateYoutubeDL(applicationContext, YoutubeDL.UpdateChannel.STABLE)' "$src"
+
           bash gradlew :app:assembleDebug
 
       - name: Upload APK
